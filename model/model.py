@@ -41,30 +41,32 @@ class Model:
             --> Ogni Tour ha un set di Attrazione.
             --> Ogni Attrazione ha un set di Tour.
         """
-        if self.tour_map is None: return
+        if self.tour_map is None:
+            return
 
-        for id_tour in self.tour_map.keys():
-            # Il Suo DAO richiede una query per ID:
+        for id_tour in self.tour_map.keys(): # Itero sulle chiavi dei tour
+            # Per ogni tour interrogo il DAO per trovare tutte le relazioni
             relazioni = TourDAO.get_tour_attrazioni(id_tour)
 
-            if relazioni is None: continue
+            if relazioni is None:
+                continue
 
             for diz in relazioni:
                 id_attrazione = diz['id_attrazione']
 
+                # Ottengo l'id del tour e dell'attrazione
                 tour = self.tour_map.get(id_tour)
                 attrazione = self.attrazioni_map.get(id_attrazione)
 
                 if tour and attrazione:
-                    # 1. Collegamento Tour -> Attrazione (Essenziale per la ricorsione)
-                    tour.attrazioni.add(attrazione)
+                    tour.attrazioni.add(attrazione) # Collegamento per accedere a tutte le attrazioni per un dato tour
 
-                    # 2. Collegamento Attrazione -> Tour (Bidirezionale)
-                    if hasattr(attrazione, 'tour'):  # Controllo che il campo esista
-                        attrazione.tour.add(tour)
+                    if hasattr(attrazione, 'tour'):
+                        attrazione.tour.add(tour) # Collegamento per accedere a tutti i tour per una data attrazione
 
     # TODO
 
+    # Questo metodo è chiamato nel controller
     def genera_pacchetto(self, id_regione: str, max_giorni: int = None, max_budget: float = None):
         """
         Calcola il pacchetto turistico ottimale per una regione rispettando i vincoli di durata, budget e attrazioni uniche.
@@ -80,11 +82,10 @@ class Model:
         self._costo = 0
         self._valore_ottimo = 0
 
-        # Gestione dei limiti con Infinito
         self._max_giorni = max_giorni if max_giorni is not None else float('inf')
         self._max_budget = max_budget if max_budget is not None else float('inf')
 
-        # Tour filtrati e salvati in un attributo d'istanza per chiarezza
+        # Prendo i tour per la regione selezionata
         self._tours_regione = [t for t in self.tour_map.values() if t.id_regione == id_regione]
 
         self._ricorsione(
@@ -107,33 +108,40 @@ class Model:
                     attrazioni_usate: set, lista_tour: list,
                     max_giorni: float, max_budget: float):
         """ Algoritmo di ricorsione che deve trovare il pacchetto che massimizza il valore culturale"""
-        if valore_corrente > self._valore_ottimo:
-            self._valore_ottimo = valore_corrente
-            self._costo = costo_corrente  # CORREZIONE: Aggiorniamo il costo solo se è l'ottimo
-            self._pacchetto_ottimo = pacchetto_parziale.copy()  # copy() è sufficiente per l'ottimizzazione
 
+        # Se il valore parziale è migliore di quello ottimo
+        if valore_corrente > self._valore_ottimo:
+            self._valore_ottimo = valore_corrente # Aggiorno il valore
+            self._costo = costo_corrente  # Aggiorno il costo
+            self._pacchetto_ottimo = pacchetto_parziale.copy()  # Creo una copia
+
+        # SE l'indice di partenza è maggiore della lunghezza della lista dei tour
         if start_index >= len(lista_tour):
             return
 
         tour_corrente = lista_tour[start_index]
         attrazioni_tour_corrente = tour_corrente.attrazioni
 
-        # Valori per il controllo dei vincoli
         nuova_durata = durata_corrente + tour_corrente.durata_giorni
         nuovo_costo = costo_corrente + tour_corrente.costo
 
-        check_attrazioni = attrazioni_usate.isdisjoint(attrazioni_tour_corrente)  # Vincolo Rigido
-        check_budget = (nuovo_costo <= max_budget)
-        check_durata = (nuova_durata <= max_giorni)
+        # Vedo se ci sono attrazioni duplicate
+        vincolo_attrazioni = attrazioni_usate.isdisjoint(attrazioni_tour_corrente)  # Vincolo di unicità
 
-        if check_budget and check_durata and check_attrazioni:
-            # Calcolo del valore aggiunto (usiamo il set ORM corretto)
+        # Ultimi due vincoli
+        vincolo_budget = (nuovo_costo <= max_budget)
+        vincolo_durata = (nuova_durata <= max_giorni)
+
+        # Se tutti i vincoli sono soddisfatti
+        if vincolo_budget and vincolo_durata and vincolo_attrazioni:
+
             valore_aggiunto = sum(a.valore_culturale for a in attrazioni_tour_corrente)
 
             pacchetto_parziale.append(tour_corrente)
 
             nuove_attrazioni_usate = attrazioni_usate | attrazioni_tour_corrente
 
+            # La funzione richiama se stessa
             self._ricorsione(
                 start_index + 1,
                 pacchetto_parziale,
