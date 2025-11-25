@@ -16,7 +16,7 @@ class TourDAO:
             return None
 
         cursor = cnx.cursor(dictionary=True)
-        query = """ ADD YOUR QUERY """ # TODO
+        query = """ SELECT * FROM tour""" # TODO
         try:
             cursor.execute(query)
             for row in cursor:
@@ -38,7 +38,7 @@ class TourDAO:
         return result
 
     @staticmethod
-    def get_tour_attrazioni() -> list | None:
+    def get_tour_attrazioni(id_tour) -> list | None:
         """
         Restituisce tutte le relazioni
         :return: una lista di dizionari [{"id_tour": ..., "id_attrazione": ...}]
@@ -50,9 +50,13 @@ class TourDAO:
             return None
 
         cursor = cnx.cursor(dictionary=True)
-        query = """ ADD YOUR QUERY """ # TODO
+        query = """ SELECT DISTINCT id_tour, id_attrazione
+        FROM tour_attrazione 
+        WHERE id_tour=%s
+        """ # TODO
+
         try:
-            cursor.execute(query)
+            cursor.execute(query, (id_tour,))
             for row in cursor:
                 result.append({
                     "id_tour": row["id_tour"],
@@ -64,5 +68,4 @@ class TourDAO:
         finally:
             cursor.close()
             cnx.close()
-
         return result
